@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بازی مار برای موبایل</title>
+    <title>بازی مار با ذخیره امتیاز</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -56,18 +56,33 @@
         #right {
             grid-area: right;
         }
+        #restart {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #444;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #restart:active {
+            background-color: #666;
+        }
     </style>
 </head>
 <body>
     <div>
         <canvas id="gameCanvas" width="300" height="300"></canvas>
-        <div class="score">امتیاز: <span id="score">0</span></div>
+        <div class="score">امتیاز فعلی: <span id="score">0</span></div>
+        <div class="score">بالاترین امتیاز: <span id="highScore">0</span></div>
         <div class="controls">
             <button id="up">↑</button>
             <button id="left">←</button>
             <button id="down">↓</button>
             <button id="right">→</button>
         </div>
+        <button id="restart">شروع مجدد</button>
     </div>
 
     <script>
@@ -78,6 +93,11 @@
         let food = { x: Math.floor(Math.random() * 20) * box, y: Math.floor(Math.random() * 20) * box }; // موقعیت غذا
         let direction;
         let score = 0;
+        let highScore = localStorage.getItem('highScore') || 0; // دریافت بالاترین امتیاز از localStorage
+        let game;
+
+        // نمایش بالاترین امتیاز
+        document.getElementById('highScore').innerText = highScore;
 
         // کنترل جهت مار با دکمه‌ها
         document.getElementById('up').addEventListener('click', () => {
@@ -91,6 +111,17 @@
         });
         document.getElementById('right').addEventListener('click', () => {
             if (direction !== 'LEFT') direction = 'RIGHT';
+        });
+
+        // شروع مجدد بازی
+        document.getElementById('restart').addEventListener('click', () => {
+            clearInterval(game); // متوقف کردن بازی فعلی
+            snake = [{ x: 9 * box, y: 10 * box }]; // بازنشانی موقعیت مار
+            food = { x: Math.floor(Math.random() * 20) * box, y: Math.floor(Math.random() * 20) * box }; // بازنشانی موقعیت غذا
+            direction = undefined; // بازنشانی جهت
+            score = 0; // بازنشانی امتیاز
+            document.getElementById('score').innerText = score;
+            game = setInterval(drawGame, 100); // شروع بازی جدید
         });
 
         // تشخیص برخورد مار با خودش یا دیوار
@@ -130,6 +161,14 @@
             if (snakeX === food.x && snakeY === food.y) {
                 score++;
                 document.getElementById('score').innerText = score;
+
+                // بررسی و به‌روزرسانی بالاترین امتیاز
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('highScore', highScore); // ذخیره بالاترین امتیاز در localStorage
+                    document.getElementById('highScore').innerText = highScore;
+                }
+
                 food = { x: Math.floor(Math.random() * 20) * box, y: Math.floor(Math.random() * 20) * box };
             } else {
                 snake.pop();
@@ -147,7 +186,7 @@
         }
 
         // شروع بازی
-        let game = setInterval(drawGame, 100);
+        game = setInterval(drawGame, 100);
     </script>
 </body>
 </html>
