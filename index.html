@@ -3,220 +3,239 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بازی مار با موانع پویا</title>
+    <title>بازی مکعب آبی و قرمز - نسخه حرفه‌ای</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
-            background-color: #000;
-            color: #fff;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
         }
-        canvas {
-            border: 1px solid #fff;
-            background-color: #111;
+
+        #game-container {
+            position: relative;
+            width: 90vw;
+            height: 90vw;
+            max-width: 300px;
+            max-height: 300px;
+            border: 2px solid #000;
+            background-color: #fff;
         }
-        .score {
-            margin-top: 20px;
-            font-size: 20px;
+
+        .cube {
+            position: absolute;
+            width: 10%;
+            height: 10%;
         }
-        .controls {
+
+        #blue-cube {
+            background-color: blue;
+            top: 0;
+            left: 0;
+        }
+
+        #red-cube {
+            background-color: red;
+            bottom: 0;
+            right: 0;
+        }
+
+        .obstacle {
+            position: absolute;
+            background-color: black;
+        }
+
+        #timer {
+            margin-top: 10px;
+            font-size: 18px;
+        }
+
+        #controls {
             margin-top: 20px;
             display: grid;
-            grid-template-areas:
-                ". up ."
-                "left down right";
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
             gap: 10px;
         }
-        .controls button {
-            padding: 20px;
-            font-size: 20px;
-            background-color: #333;
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-        }
-        .controls button:active {
-            background-color: #555;
-        }
-        #up {
-            grid-area: up;
-        }
-        #left {
-            grid-area: left;
-        }
-        #down {
-            grid-area: down;
-        }
-        #right {
-            grid-area: right;
-        }
-        #restart {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #444;
-            color: #fff;
+
+        .control-btn {
+            padding: 15px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
         }
-        #restart:active {
-            background-color: #666;
+
+        .control-btn:active {
+            background-color: #45a049;
+        }
+
+        #up-btn {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        #left-btn {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        #down-btn {
+            grid-column: 2;
+            grid-row: 2;
+        }
+
+        #right-btn {
+            grid-column: 3;
+            grid-row: 2;
         }
     </style>
 </head>
 <body>
-    <div>
-        <canvas id="gameCanvas" width="300" height="300"></canvas>
-        <div class="score">امتیاز فعلی: <span id="score">0</span></div>
-        <div class="score">بالاترین امتیاز: <span id="highScore">0</span></div>
-        <div class="controls">
-            <button id="up">↑</button>
-            <button id="left">←</button>
-            <button id="down">↓</button>
-            <button id="right">→</button>
-        </div>
-        <button id="restart">شروع مجدد</button>
+    <h1>بازی مکعب آبی و قرمز</h1>
+    <div id="game-container">
+        <div id="blue-cube" class="cube"></div>
+        <div id="red-cube" class="cube"></div>
+    </div>
+    <div id="timer">زمان: 0 ثانیه</div>
+    <div id="controls">
+        <button id="up-btn" class="control-btn">↑</button>
+        <button id="left-btn" class="control-btn">←</button>
+        <button id="down-btn" class="control-btn">↓</button>
+        <button id="right-btn" class="control-btn">→</button>
     </div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const box = 15; // اندازه هر خانه در صفحه
-        let snake = [{ x: 9 * box, y: 10 * box }]; // موقعیت اولیه مار
-        let food = { x: Math.floor(Math.random() * 20) * box, y: Math.floor(Math.random() * 20) * box }; // موقعیت غذا
-        let direction;
-        let score = 0;
-        let highScore = localStorage.getItem('highScore') || 0; // دریافت بالاترین امتیاز از localStorage
-        let game;
+        let currentLevel = 1;
+        let startTime;
+        let timerInterval;
+        let blueCubeX = 0;
+        let blueCubeY = 0;
+        const cubeSizePercent = 10; // 10% of container
+        const levels = [
+            { obstacles: [] }, // مرحله ۱: بدون مانع
+            { obstacles: [{ x: 30, y: 30, width: 40, height: 10 }] }, // مرحله ۲: یک مانع
+            { obstacles: [{ x: 20, y: 60, width: 60, height: 10 }, { x: 50, y: 20, width: 10, height: 40 }] }, // مرحله ۳: دو مانع
+            { obstacles: [{ x: 0, y: 20, width: 80, height: 10 }, { x: 20, y: 40, width: 60, height: 10 }, { x: 40, y: 60, width: 40, height: 10 }] }, // مرحله ۴: هزارتو ساده
+            { obstacles: [{ x: 0, y: 10, width: 90, height: 10 }, { x: 10, y: 30, width: 80, height: 10 }, { x: 20, y: 50, width: 70, height: 10 }, { x: 30, y: 70, width: 60, height: 10 }] }, // مرحله ۵: هزارتو پیچیده
+        ];
 
-        // آرایه‌ای برای ذخیره موانع
-        let obstacles = [];
-
-        // نمایش بالاترین امتیاز
-        document.getElementById('highScore').innerText = highScore;
-
-        // تابع برای ایجاد موانع جدید
-        function createObstacles() {
-            for (let i = 0; i < 3; i++) { // ایجاد ۳ مانع جدید
-                let obstacle = {
-                    x: Math.floor(Math.random() * 20) * box,
-                    y: Math.floor(Math.random() * 20) * box
-                };
-                // بررسی عدم تداخل با مار یا غذا
-                if (!collisionDetection(obstacle, snake) && (obstacle.x !== food.x || obstacle.y !== food.y)) {
-                    obstacles.push(obstacle);
-                }
-            }
-        }
-
-        // کنترل جهت مار با دکمه‌ها
-        document.getElementById('up').addEventListener('click', () => {
-            if (direction !== 'DOWN') direction = 'UP';
-        });
-        document.getElementById('down').addEventListener('click', () => {
-            if (direction !== 'UP') direction = 'DOWN';
-        });
-        document.getElementById('left').addEventListener('click', () => {
-            if (direction !== 'RIGHT') direction = 'LEFT';
-        });
-        document.getElementById('right').addEventListener('click', () => {
-            if (direction !== 'LEFT') direction = 'RIGHT';
-        });
-
-        // شروع مجدد بازی
-        document.getElementById('restart').addEventListener('click', () => {
-            clearInterval(game); // متوقف کردن بازی فعلی
-            snake = [{ x: 9 * box, y: 10 * box }]; // بازنشانی موقعیت مار
-            food = { x: Math.floor(Math.random() * 20) * box, y: Math.floor(Math.random() * 20) * box }; // بازنشانی موقعیت غذا
-            direction = undefined; // بازنشانی جهت
-            score = 0; // بازنشانی امتیاز
-            obstacles = []; // پاک کردن موانع
-            document.getElementById('score').innerText = score;
-            game = setInterval(drawGame, 100); // شروع بازی جدید
-        });
-
-        // تشخیص برخورد مار با خودش، موانع یا دیوار
-        function collisionDetection(head, array) {
-            for (let i = 0; i < array.length; i++) {
-                if (head.x === array[i].x && head.y === array[i].y) return true;
-            }
-            return false;
-        }
-
-        // رسم صفحه بازی
-        function drawGame() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // رسم موانع
-            ctx.fillStyle = 'gray';
-            obstacles.forEach(obstacle => {
-                ctx.fillRect(obstacle.x, obstacle.y, box, box);
+        function initializeGame() {
+            const gameContainer = document.getElementById('game-container');
+            gameContainer.innerHTML = `
+                <div id="blue-cube" class="cube"></div>
+                <div id="red-cube" class="cube"></div>
+            `;
+            const level = levels[currentLevel - 1];
+            level.obstacles.forEach(obstacle => {
+                const obstacleElement = document.createElement('div');
+                obstacleElement.className = 'obstacle';
+                obstacleElement.style.left = `${obstacle.x}%`;
+                obstacleElement.style.top = `${obstacle.y}%`;
+                obstacleElement.style.width = `${obstacle.width}%`;
+                obstacleElement.style.height = `${obstacle.height}%`;
+                gameContainer.appendChild(obstacleElement);
             });
+            startTimer();
+        }
 
-            // رسم مار
-            for (let i = 0; i < snake.length; i++) {
-                ctx.fillStyle = (i === 0) ? 'lime' : 'green';
-                ctx.fillRect(snake[i].x, snake[i].y, box, box);
-                ctx.strokeStyle = '#000';
-                ctx.strokeRect(snake[i].x, snake[i].y, box, box);
+        function startTimer() {
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById('timer').innerText = `زمان: ${elapsedTime} ثانیه`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function moveCube(direction) {
+            const step = 2; // گام حرکت بر اساس درصد
+            let newX = blueCubeX;
+            let newY = blueCubeY;
+
+            switch (direction) {
+                case 'up': newY = Math.max(0, blueCubeY - step); break;
+                case 'down': newY = Math.min(90, blueCubeY + step); break;
+                case 'left': newX = Math.max(0, blueCubeX - step); break;
+                case 'right': newX = Math.min(90, blueCubeX + step); break;
             }
 
-            // رسم غذا
-            ctx.fillStyle = 'red';
-            ctx.fillRect(food.x, food.y, box, box);
+            if (!checkCollision(newX, newY)) {
+                blueCubeX = newX;
+                blueCubeY = newY;
+                const blueCube = document.getElementById('blue-cube');
+                blueCube.style.top = `${blueCubeY}%`;
+                blueCube.style.left = `${blueCubeX}%`;
 
-            // حرکت مار
-            let snakeX = snake[0].x;
-            let snakeY = snake[0].y;
-
-            if (direction === 'UP') snakeY -= box;
-            if (direction === 'DOWN') snakeY += box;
-            if (direction === 'LEFT') snakeX -= box;
-            if (direction === 'RIGHT') snakeX += box;
-
-            // تشخیص برخورد با غذا
-            if (snakeX === food.x && snakeY === food.y) {
-                score++;
-                document.getElementById('score').innerText = score;
-
-                // بررسی و به‌روزرسانی بالاترین امتیاز
-                if (score > highScore) {
-                    highScore = score;
-                    localStorage.setItem('highScore', highScore);
-                    document.getElementById('highScore').innerText = highScore;
+                if (checkWin()) {
+                    stopTimer();
+                    alert(`تبریک! شما مرحله ${currentLevel} را در ${Math.floor((Date.now() - startTime) / 1000)} ثانیه کامل کردید!`);
+                    nextLevel();
                 }
-
-                // ایجاد موانع جدید هر ۳۰ امتیاز
-                if (score % 30 === 0) {
-                    createObstacles();
-                }
-
-                food = { x: Math.floor(Math.random() * 20) * box, y: Math.floor(Math.random() * 20) * box };
-            } else {
-                snake.pop();
-            }
-
-            // اضافه کردن سر جدید به مار
-            const newHead = { x: snakeX, y: snakeY };
-            snake.unshift(newHead);
-
-            // تشخیص پایان بازی
-            if (snakeX < 0 || snakeX >= canvas.width || snakeY < 0 || snakeY >= canvas.height ||
-                collisionDetection(newHead, snake.slice(1)) || collisionDetection(newHead, obstacles)) {
-                clearInterval(game);
-                alert('بازی تمام شد! امتیاز شما: ' + score);
             }
         }
 
-        // شروع بازی
-        game = setInterval(drawGame, 100);
+        function checkCollision(x, y) {
+            const level = levels[currentLevel - 1];
+            return level.obstacles.some(obstacle => {
+                return x < obstacle.x + obstacle.width &&
+                    x + cubeSizePercent > obstacle.x &&
+                    y < obstacle.y + obstacle.height &&
+                    y + cubeSizePercent > obstacle.y;
+            });
+        }
+
+        function checkWin() {
+            const blueCube = document.getElementById('blue-cube');
+            const redCube = document.getElementById('red-cube');
+            const blueRect = blueCube.getBoundingClientRect();
+            const redRect = redCube.getBoundingClientRect();
+
+            return blueRect.left < redRect.right &&
+                blueRect.right > redRect.left &&
+                blueRect.top < redRect.bottom &&
+                blueRect.bottom > redRect.top;
+        }
+
+        function nextLevel() {
+            if (currentLevel < levels.length) {
+                currentLevel++;
+                initializeGame();
+            } else {
+                alert('شما همه مراحل را کامل کردید!');
+                currentLevel = 1;
+                initializeGame();
+            }
+        }
+
+        // افزودن کنترل‌های دکمه‌ها
+        const buttons = {
+            'up': document.getElementById('up-btn'),
+            'down': document.getElementById('down-btn'),
+            'left': document.getElementById('left-btn'),
+            'right': document.getElementById('right-btn')
+        };
+
+        Object.keys(buttons).forEach(direction => {
+            let interval;
+            buttons[direction].addEventListener('mousedown', () => {
+                moveCube(direction);
+                interval = setInterval(() => moveCube(direction), 100);
+            });
+            buttons[direction].addEventListener('mouseup', () => clearInterval(interval));
+            buttons[direction].addEventListener('mouseleave', () => clearInterval(interval));
+        });
+
+        initializeGame();
     </script>
 </body>
 </html>
