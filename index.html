@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بازی مار با ذخیره امتیاز</title>
+    <title>بازی مار با موانع پویا</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -96,8 +96,25 @@
         let highScore = localStorage.getItem('highScore') || 0; // دریافت بالاترین امتیاز از localStorage
         let game;
 
+        // آرایه‌ای برای ذخیره موانع
+        let obstacles = [];
+
         // نمایش بالاترین امتیاز
         document.getElementById('highScore').innerText = highScore;
+
+        // تابع برای ایجاد موانع جدید
+        function createObstacles() {
+            for (let i = 0; i < 3; i++) { // ایجاد ۳ مانع جدید
+                let obstacle = {
+                    x: Math.floor(Math.random() * 20) * box,
+                    y: Math.floor(Math.random() * 20) * box
+                };
+                // بررسی عدم تداخل با مار یا غذا
+                if (!collisionDetection(obstacle, snake) && (obstacle.x !== food.x || obstacle.y !== food.y)) {
+                    obstacles.push(obstacle);
+                }
+            }
+        }
 
         // کنترل جهت مار با دکمه‌ها
         document.getElementById('up').addEventListener('click', () => {
@@ -120,11 +137,12 @@
             food = { x: Math.floor(Math.random() * 20) * box, y: Math.floor(Math.random() * 20) * box }; // بازنشانی موقعیت غذا
             direction = undefined; // بازنشانی جهت
             score = 0; // بازنشانی امتیاز
+            obstacles = []; // پاک کردن موانع
             document.getElementById('score').innerText = score;
             game = setInterval(drawGame, 100); // شروع بازی جدید
         });
 
-        // تشخیص برخورد مار با خودش یا دیوار
+        // تشخیص برخورد مار با خودش، موانع یا دیوار
         function collisionDetection(head, array) {
             for (let i = 0; i < array.length; i++) {
                 if (head.x === array[i].x && head.y === array[i].y) return true;
@@ -135,6 +153,12 @@
         // رسم صفحه بازی
         function drawGame() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // رسم موانع
+            ctx.fillStyle = 'gray';
+            obstacles.forEach(obstacle => {
+                ctx.fillRect(obstacle.x, obstacle.y, box, box);
+            });
 
             // رسم مار
             for (let i = 0; i < snake.length; i++) {
@@ -165,8 +189,13 @@
                 // بررسی و به‌روزرسانی بالاترین امتیاز
                 if (score > highScore) {
                     highScore = score;
-                    localStorage.setItem('highScore', highScore); // ذخیره بالاترین امتیاز در localStorage
+                    localStorage.setItem('highScore', highScore);
                     document.getElementById('highScore').innerText = highScore;
+                }
+
+                // ایجاد موانع جدید هر ۳۰ امتیاز
+                if (score % 30 === 0) {
+                    createObstacles();
                 }
 
                 food = { x: Math.floor(Math.random() * 20) * box, y: Math.floor(Math.random() * 20) * box };
@@ -179,7 +208,8 @@
             snake.unshift(newHead);
 
             // تشخیص پایان بازی
-            if (snakeX < 0 || snakeX >= canvas.width || snakeY < 0 || snakeY >= canvas.height || collisionDetection(newHead, snake.slice(1))) {
+            if (snakeX < 0 || snakeX >= canvas.width || snakeY < 0 || snakeY >= canvas.height ||
+                collisionDetection(newHead, snake.slice(1)) || collisionDetection(newHead, obstacles)) {
                 clearInterval(game);
                 alert('بازی تمام شد! امتیاز شما: ' + score);
             }
