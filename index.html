@@ -113,6 +113,24 @@
             if (direction !== 'LEFT') direction = 'RIGHT';
         });
 
+        // کنترل جهت مار با کیبورد
+        document.addEventListener('keydown', (event) => {
+            switch(event.key) {
+                case 'ArrowUp':
+                    if (direction !== 'DOWN') direction = 'UP';
+                    break;
+                case 'ArrowDown':
+                    if (direction !== 'UP') direction = 'DOWN';
+                    break;
+                case 'ArrowLeft':
+                    if (direction !== 'RIGHT') direction = 'LEFT';
+                    break;
+                case 'ArrowRight':
+                    if (direction !== 'LEFT') direction = 'RIGHT';
+                    break;
+            }
+        });
+
         // شروع مجدد بازی
         document.getElementById('restart').addEventListener('click', () => {
             clearInterval(game); // متوقف کردن بازی فعلی
