@@ -1,197 +1,110 @@
 <!DOCTYPE html>
-<html>
+<html lang="fa">
 <head>
   <meta charset="UTF-8">
-  <title>Simple Snake Game</title>
+  <title>بازی مار ساده</title>
   <style>
     body {
-      margin: 0;
-      font-family: sans-serif;
-      text-align: center;
-      background-color: white;
-      color: black;
-    }
-    #gameArea {
-      margin: auto;
-      position: relative;
-      width: 300px;
-      height: 300px;
-      background: #000;
-      overflow: hidden;
-    }
-    .snake-part {
-      width: 20px;
-      height: 20px;
-      background: lime;
-      position: absolute;
-      animation: snakeAnim 0.3s ease-in-out;
-    }
-    .food {
-      width: 20px;
-      height: 20px;
-      background: red;
-      position: absolute;
-      animation: foodAnim 0.3s ease-in-out;
-    }
-    @keyframes snakeAnim {
-      0% { transform: scale(1.2); }
-      100% { transform: scale(1); }
-    }
-    @keyframes foodAnim {
-      0% { transform: scale(0.5); opacity: 0.5; }
-      100% { transform: scale(1); opacity: 1; }
-    }
-    #controls {
-      margin-top: 10px;
-    }
-    button {
-      padding: 8px 16px;
-      margin: 5px;
-    }
-    .night-mode {
-      background-color: #111;
+      background: black;
       color: white;
+      text-align: center;
+      font-family: sans-serif;
+    }
+    canvas {
+      background: #111;
+      border: 1px solid #fff;
+      margin-top: 20px;
+    }
+    #scoreArea {
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <h3>امتیاز: <span id="score">0</span> | رکورد: <span id="highscore">0</span></h3>
-  <div id="gameArea"></div>
-
-  <div id="controls">
-    <button onclick="changeDir('up')">بالا</button><br>
-    <button onclick="changeDir('left')">چپ</button>
-    <button onclick="changeDir('down')">پایین</button>
-    <button onclick="changeDir('right')">راست</button><br>
-    <button onclick="resetGame()">شروع دوباره</button>
-    <button onclick="togglePause()"><span id="pauseText">توقف</span></button>
-    <button onclick="toggleMode()">حالت شب / روز</button>
+  <h2>بازی مار ساده</h2>
+  <canvas id="game" width="300" height="300"></canvas>
+  <div id="scoreArea">
+    <p>امتیاز: <span id="score">0</span></p>
+    <p>بالاترین امتیاز: <span id="highScore">0</span></p>
   </div>
 
-  <audio id="eatSound" src="https://www.soundjay.com/button/sounds/button-10.mp3"></audio>
-  <audio id="gameOverSound" src="https://www.soundjay.com/button/sounds/button-16.mp3"></audio>
-
   <script>
-    const area = document.getElementById("gameArea");
-    const scoreText = document.getElementById("score");
-    const highscoreText = document.getElementById("highscore");
-    const eatSound = document.getElementById("eatSound");
-    const gameOverSound = document.getElementById("gameOverSound");
-    let snake = [{x: 0, y: 0}];
-    let direction = 'right';
-    let food = {};
-    let score = 0;
-    let interval = 300;
-    let timer = null;
-    let isPaused = false;
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
 
-    const gridSize = 20;
-    const maxSize = 300;
-
-    document.onkeydown = function(e) {
-      const keys = {37: 'left', 38: 'up', 39: 'right', 40: 'down'};
-      if (keys[e.keyCode]) changeDir(keys[e.keyCode]);
+    const box = 15;
+    let snake = [{ x: 9 * box, y: 9 * box }];
+    let food = {
+      x: Math.floor(Math.random() * 20) * box,
+      y: Math.floor(Math.random() * 20) * box
     };
+    let direction;
+    let score = 0;
+    let highScore = localStorage.getItem("highScore") || 0;
+    document.getElementById("highScore").innerText = highScore;
 
-    function changeDir(dir) {
-      direction = dir;
-    }
-
-    function spawnFood() {
-      food = {
-        x: Math.floor(Math.random() * (maxSize / gridSize)) * gridSize,
-        y: Math.floor(Math.random() * (maxSize / gridSize)) * gridSize
-      };
-    }
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowUp" && direction !== "DOWN") direction = "UP";
+      if (e.key === "ArrowDown" && direction !== "UP") direction = "DOWN";
+      if (e.key === "ArrowLeft" && direction !== "RIGHT") direction = "LEFT";
+      if (e.key === "ArrowRight" && direction !== "LEFT") direction = "RIGHT";
+    });
 
     function draw() {
-      area.innerHTML = "";
-      snake.forEach(part => {
-        let el = document.createElement("div");
-        el.className = "snake-part";
-        el.style.left = part.x + "px";
-        el.style.top = part.y + "px";
-        area.appendChild(el);
-      });
-      let f = document.createElement("div");
-      f.className = "food";
-      f.style.left = food.x + "px";
-      f.style.top = food.y + "px";
-      area.appendChild(f);
-    }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    function move() {
-      if (isPaused) return;
-
-      let head = {...snake[0]};
-      if (direction === 'right') head.x += gridSize;
-      else if (direction === 'left') head.x -= gridSize;
-      else if (direction === 'up') head.y -= gridSize;
-      else if (direction === 'down') head.y += gridSize;
-
-      // Check walls
-      if (head.x < 0 || head.y < 0 || head.x >= maxSize || head.y >= maxSize || snake.some(p => p.x === head.x && p.y === head.y)) {
-        gameOver();
-        return;
+      // Draw snake
+      for (let i = 0; i < snake.length; i++) {
+        ctx.fillStyle = i === 0 ? "lime" : "green";
+        ctx.fillRect(snake[i].x, snake[i].y, box, box);
       }
 
-      snake.unshift(head);
-      if (head.x === food.x && head.y === food.y) {
+      // Draw food
+      ctx.fillStyle = "red";
+      ctx.fillRect(food.x, food.y, box, box);
+
+      let headX = snake[0].x;
+      let headY = snake[0].y;
+
+      if (direction === "UP") headY -= box;
+      if (direction === "DOWN") headY += box;
+      if (direction === "LEFT") headX -= box;
+      if (direction === "RIGHT") headX += box;
+
+      if (headX === food.x && headY === food.y) {
         score++;
-        eatSound.play();
-        spawnFood();
-        if (score % 10 === 0 && interval > 50) {
-          clearInterval(timer);
-          interval -= 30;
-          timer = setInterval(move, interval);
+        document.getElementById("score").innerText = score;
+
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem("highScore", highScore);
+          document.getElementById("highScore").innerText = highScore;
         }
+
+        food = {
+          x: Math.floor(Math.random() * 20) * box,
+          y: Math.floor(Math.random() * 20) * box
+        };
       } else {
         snake.pop();
       }
 
-      scoreText.innerText = score;
-      draw();
-    }
+      const newHead = { x: headX, y: headY };
 
-    function gameOver() {
-      gameOverSound.play();
-      clearInterval(timer);
-      alert("شما باختید! امتیاز: " + score);
-      let hs = localStorage.getItem("highscore") || 0;
-      if (score > hs) {
-        localStorage.setItem("highscore", score);
-        highscoreText.innerText = score;
+      if (
+        headX < 0 || headX >= canvas.width ||
+        headY < 0 || headY >= canvas.height ||
+        snake.some((s) => s.x === newHead.x && s.y === newHead.y)
+      ) {
+        clearInterval(game);
+        alert("بازی تمام شد! امتیاز: " + score);
+        return;
       }
+
+      snake.unshift(newHead);
     }
 
-    function resetGame() {
-      score = 0;
-      interval = 300;
-      snake = [{x: 0, y: 0}];
-      direction = 'right';
-      clearInterval(timer);
-      spawnFood();
-      draw();
-      scoreText.innerText = "0";
-      isPaused = false;
-      document.getElementById("pauseText").innerText = "توقف";
-      timer = setInterval(move, interval);
-    }
-
-    function togglePause() {
-      isPaused = !isPaused;
-      document.getElementById("pauseText").innerText = isPaused ? "ادامه" : "توقف";
-    }
-
-    function toggleMode() {
-      document.body.classList.toggle("night-mode");
-    }
-
-    // Init
-    if (localStorage.getItem("highscore")) {
-      highscoreText.innerText = localStorage.getItem("highscore");
-    }
-    resetGame();
+    const game = setInterval(draw, 100);
   </script>
 </body>
 </html>
